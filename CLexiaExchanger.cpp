@@ -13,6 +13,17 @@
 #define MAX_DEVPATH_LENGTH 256
 DEFINE_GUID(GUID_DEVINTERFACE_LEXIA, 0x75a835f4L, 0xd77d, 0x4402, 0x85, 0x85, 0xc4, 0x22, 0x47, 0xf2, 0x5b, 0x76);
 
+static char* BytesToCharArray(UCHAR* data, UINT size)
+{
+	char hexstr[8192];
+	UINT i;
+	for (i = 0; i < size; i++) {
+		sprintf(hexstr + i * 2, "%02X", data[i]);
+	}
+	hexstr[i * 2] = 0;
+	return hexstr;
+}
+
 LEXIA_STATUS CLexiaExchanger::GetDevicePath(_In_  LPGUID InterfaceGuid, _Out_writes_z_(BufLen) PWCHAR DevicePath, _In_ size_t BufLen)
 {
 	CONFIGRET cr = CR_SUCCESS;
@@ -79,7 +90,6 @@ clean0:
 
 CLexiaExchanger::CLexiaExchanger()
 {
-	LexiaId = 0;
 	Device = INVALID_HANDLE_VALUE;
 }
 LEXIA_STATUS CLexiaExchanger::Disconnect()
@@ -88,13 +98,12 @@ LEXIA_STATUS CLexiaExchanger::Disconnect()
 	{
 		if (CloseHandle(Device))
 		{
-			printf("Device closed");
+			printf("Device closed\n");
 			Device = INVALID_HANDLE_VALUE;
-			LexiaId = 0;
 			return LEXIA_NOERROR;
 		}
 	}
-	printf("Device close failed");
+	printf("Device close failed\n");
 	return LEXIA_FAILED;
 }
 
@@ -120,12 +129,11 @@ LEXIA_STATUS CLexiaExchanger::Connect()
 
 	if (Device == INVALID_HANDLE_VALUE)
 	{
-		printf("Failed to open the device, error - %d", GetLastError());
+		printf("Failed to open the device, error - %d\n", GetLastError());
 		return LEXIA_FAILED;
 	}
 	else
 	{
-		LexiaId = 1;
 		printf("Opened the device successfully.\n");
 		return LEXIA_NOERROR;
 	}
@@ -139,11 +147,14 @@ LEXIA_STATUS CLexiaExchanger::SendReceive(void* in, size_t in_len, void* out, si
 	BOOL bStatus = false;
 	ULONG ulReturnedLength = 0;
 	char tmp_buf[8];
+	printf("\n");
+	printf("Binary send: %s\n", BytesToCharArray((UCHAR*)in, in_len));
 
 	bStatus = DeviceIoControl(Device, IOCTL_SEND_COMMAND, in, in_len, tmp_buf, 8, &ulReturnedLength, NULL);
 	//00 00 01 00 44 00 00 00
 	// 01 - data available
 	// 44 - out size
+	printf("Status mesg: %s\n", BytesToCharArray((UCHAR*)tmp_buf, ulReturnedLength));
 	if (ulReturnedLength >= 8 && bStatus)
 	{
 		int rcv_len = tmp_buf[4];
@@ -151,6 +162,8 @@ LEXIA_STATUS CLexiaExchanger::SendReceive(void* in, size_t in_len, void* out, si
 		bStatus = DeviceIoControl(Device, IOCTL_GET_RESULT, tmp_buf, 4, out, rcv_len, &ulReturnedLength, NULL);
 		if (bStatus && ulReturnedLength)
 		{
+			printf("Binary recv: %s\n", BytesToCharArray((UCHAR*)out, ulReturnedLength));
+			printf("\n");
 			*out_len = ulReturnedLength;
 			return LEXIA_NOERROR;
 		}

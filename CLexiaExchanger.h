@@ -18,8 +18,6 @@ static const char* LexiaErrors[] =
 class CLexiaExchanger
 {
 public:
-	ULONG LexiaId;
-
 	CLexiaExchanger();
 	LEXIA_STATUS Connect();
 	LEXIA_STATUS Disconnect();

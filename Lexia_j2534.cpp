@@ -1,6 +1,6 @@
 ﻿#include "pch.h"
 #include "j2534.h"
-#include "CLexiaExchanger.h"
+#include "CTranslator.h"
 #include <ctime>
 #include <consoleapi3.h>
 #include <iostream>
@@ -15,27 +15,11 @@ using namespace std;
 #endif
 
 clock_t clk = clock();
-CLexiaExchanger* Lexia = new CLexiaExchanger();
+CTranslator* translator = new CTranslator();
 
-char getAppVer[] = { 0x00, 0xFA, 0xAA, 0xBA, 0x7C, 0x15, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 
 char receiveBuf[2048];
-
-void Replace(char* start, char* end, char old_val, char new_val)
-{
-	if (start > end)
-		return;
-	while (start != end)
-	{
-		if (*start == old_val)
-		{
-			*start = new_val;
-		}
-		start++;
-	}
-}
-
-char* BytesToCharArray(UCHAR* data, UINT size)
+static char* BytesToCharArray(UCHAR* data, UINT size)
 {
 	char hexstr[8192];
 	UINT i;
@@ -53,19 +37,7 @@ extern "C" LEXIAJ2534_API long PassThruOpen(void* pName, unsigned long* pDeviceI
 	f = freopen("CONOUT$", "w", stdout);
 	f = freopen("CONOUT$", "w", stderr);
 	cout << endl << "PassThruOpen" << endl << endl;
-
-	LEXIA_STATUS status = Lexia->Connect();
-
-	if (status == LEXIA_NOERROR)
-	{
-		*pDeviceID = Lexia->LexiaId;		
-		return STATUS_NOERROR;
-	}
-	else
-	{
-		cout << LexiaErrors[status] << endl;
-		return ERR_FAILED;
-	}
+	return translator->OpenDevice(pDeviceID);	
 }
 
 extern "C" LEXIAJ2534_API long PassThruReadVersion(
@@ -74,16 +46,13 @@ extern "C" LEXIAJ2534_API long PassThruReadVersion(
 	char* pDllVersion,
 	char* pApiVersion)
 {
-	size_t received_len = 0;
-	printf("Lexia IO: %s\n", LexiaErrors[Lexia->SendReceive(getAppVer, sizeof(getAppVer), receiveBuf, &received_len)]);
-	//printf("Received %d bytes\n", received_len);
-	//printf("Data: %s\n", BytesToCharArray((UCHAR*)receiveBuf, received_len));
-	Replace(&receiveBuf[20], &receiveBuf[59], 0, 0x20);
-	printf("%s\n", &receiveBuf[20]);
-	strcpy(pFirmwareVersion, &receiveBuf[20]);
-	strcpy(pDllVersion, "1.00");
-	strcpy(pApiVersion, "04.04");
-	return STATUS_NOERROR;
+	if (translator->GetFmwVer(DeviceID, pFirmwareVersion) == STATUS_NOERROR)
+	{
+		strcpy(pDllVersion, "1.00");
+		strcpy(pApiVersion, "04.04");
+		return STATUS_NOERROR;
+	}
+	return ERR_FAILED;
 }
 
 extern "C" LEXIAJ2534_API long PassThruClose(unsigned long DeviceID)
@@ -92,7 +61,7 @@ extern "C" LEXIAJ2534_API long PassThruClose(unsigned long DeviceID)
 	cout << endl << "Close" << endl;
 	cout << "DeviceID: " << DeviceID << endl;
 #endif 		
-	return ERR_FAILED;
+	return translator->CloseDevice(DeviceID);
 }
 extern "C" LEXIAJ2534_API long PassThruConnect(
 	unsigned long DeviceID,
@@ -108,7 +77,11 @@ extern "C" LEXIAJ2534_API long PassThruConnect(
 	cout << "Flags: 0x" << hex << Flags << endl;
 	cout << "BaudRate: " << dec << BaudRate << endl;
 #endif 
-	return ERR_FAILED;
+	if (ProtocolID != ISO15765 || BaudRate != 500000 || Flags != 0)
+	{
+		return ERR_NOT_SUPPORTED;
+	}
+	return translator->ConnectAsCan500(DeviceID, pChannelID);	
 }
 extern "C" LEXIAJ2534_API long PassThruDisconnect(
 	unsigned long ChannelID)
