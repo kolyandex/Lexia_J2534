@@ -5,6 +5,7 @@
 #include <guiddef.h>
 #include <initguid.h>
 #include <iostream>
+#include <ctime>
 #pragma comment(lib,"cfgmgr32.lib")
 
 #define IOCTL_SEND_COMMAND 0x22200c
@@ -15,7 +16,7 @@ DEFINE_GUID(GUID_DEVINTERFACE_LEXIA, 0x75a835f4L, 0xd77d, 0x4402, 0x85, 0x85, 0x
 
 static char* BytesToCharArray(UCHAR* data, UINT size)
 {
-	char hexstr[8192];
+	static char * hexstr = new char[8192];
 	UINT i;
 	for (i = 0; i < size; i++) {
 		sprintf(hexstr + i * 2, "%02X", data[i]);
@@ -148,21 +149,20 @@ LEXIA_STATUS CLexiaExchanger::SendReceive(void* in, size_t in_len, void* out, si
 	ULONG ulReturnedLength = 0;
 	char tmp_buf[8];
 	printf("\n");
-	printf("Binary send: %s\n", BytesToCharArray((UCHAR*)in, in_len));
-
+	printf("%d Binary send: %s\n", clock(), BytesToCharArray((UCHAR*)in, in_len));
 	bStatus = DeviceIoControl(Device, IOCTL_SEND_COMMAND, in, in_len, tmp_buf, 8, &ulReturnedLength, NULL);
 	//00 00 01 00 44 00 00 00
 	// 01 - data available
 	// 44 - out size
-	printf("Status mesg: %s\n", BytesToCharArray((UCHAR*)tmp_buf, ulReturnedLength));
+	printf("%d Status mesg: %s\n", clock(), BytesToCharArray((UCHAR*)tmp_buf, ulReturnedLength));
 	if (ulReturnedLength >= 8 && bStatus)
 	{
-		int rcv_len = tmp_buf[4];
-		memcpy(tmp_buf, &tmp_buf[4], 4);
+		int rcv_len = *((int*)& tmp_buf[4]);
+		*(int*)tmp_buf = rcv_len;
 		bStatus = DeviceIoControl(Device, IOCTL_GET_RESULT, tmp_buf, 4, out, rcv_len, &ulReturnedLength, NULL);
 		if (bStatus && ulReturnedLength)
 		{
-			printf("Binary recv: %s\n", BytesToCharArray((UCHAR*)out, ulReturnedLength));
+			printf("%d Binary recv: %s\n", clock(), BytesToCharArray((UCHAR*)out, ulReturnedLength));
 			printf("\n");
 			*out_len = ulReturnedLength;
 			return LEXIA_NOERROR;
