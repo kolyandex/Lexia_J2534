@@ -68,6 +68,7 @@ CTranslator::CTranslator()
 	filter = NOT_INITIALIZED;
 	sendLen = 0;
 	memset(tempBuf, 0x00, sizeof(tempBuf));
+	memset(sendBuf, 0x00, sizeof(sendBuf));
 }
 
 long CTranslator::OpenDevice(unsigned long* id)
@@ -88,7 +89,7 @@ long CTranslator::OpenDevice(unsigned long* id)
 	}
 	else
 	{
-		printf("Open device: %s\n", LexiaErrors[status]);
+		//printf("Open device: %s\n", LexiaErrors[status]);
 		return ERR_FAILED;
 	}
 }
@@ -119,7 +120,7 @@ long CTranslator::GetFmwVer(unsigned long id, char* fmw_str)
 	if (Lexia->SendReceive(AppVersion, sizeof(AppVersion), tempBuf, &received_len) == LEXIA_NOERROR)
 	{
 		Replace(&tempBuf[20], &tempBuf[59], 0x00, ' ');
-		printf("Firmware: %s\n", &tempBuf[20]);
+		//printf("Firmware: %s\n", &tempBuf[20]);
 		strcpy(fmw_str, &tempBuf[20]);
 		return STATUS_NOERROR;
 	}
@@ -212,7 +213,7 @@ long CTranslator::SendMsg(unsigned long ch, unsigned char* buf, size_t len, unsi
 	}
 	if (addr != *(unsigned short*)& protocolMessage[54])
 	{
-		printf("ECU addr not match!\n");
+		//printf("ECU addr not match!\n");
 		return ERR_NOT_SUPPORTED;
 	}	
 	if (sendLen != 0)
@@ -297,8 +298,8 @@ long CTranslator::SetFilter(unsigned long ch, unsigned short ecu_addr, unsigned 
 	*id = filter;
 	*(unsigned short*)& protocolMessage[54] = ecu_addr;
 	*(unsigned short*)& protocolMessage[58] = ans_addr;
-	printf("ECU: %X\n", *(unsigned short*)& protocolMessage[54]);
-	printf("ANS: %X\n", *(unsigned short*)& protocolMessage[58]);
+	//printf("ECU: %X\n", *(unsigned short*)& protocolMessage[54]);
+	//printf("ANS: %X\n", *(unsigned short*)& protocolMessage[58]);
 	return STATUS_NOERROR;
 }
 long CTranslator::ClearFilters(unsigned long ch)
@@ -331,5 +332,5 @@ long CTranslator::ClearBuffers(unsigned long ch)
 
 CTranslator::~CTranslator()
 {
-
+	delete (Lexia);
 }

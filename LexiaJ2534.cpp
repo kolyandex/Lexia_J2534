@@ -1,4 +1,5 @@
-﻿#include "pch.h"
+#include "pch.h"
+#include <Windows.h>
 #include "j2534.h"
 #include "CTranslator.h"
 #include <ctime>
@@ -16,11 +17,11 @@ using namespace std;
 #endif
 
 clock_t clk = clock();
-CTranslator* translator = new CTranslator();
+CTranslator translator = CTranslator();
 
-static char * hexstr = new char[8192];
+static char* hexstr = new char[1024];
 static char* BytesToCharArray(UCHAR* data, UINT size)
-{	
+{
 	UINT i;
 	for (i = 0; i < size; i++) {
 		sprintf(hexstr + i * 2, "%02X", data[i]);
@@ -31,12 +32,13 @@ static char* BytesToCharArray(UCHAR* data, UINT size)
 
 extern "C" LEXIAJ2534_API long PassThruOpen(void* pName, unsigned long* pDeviceID)
 {
+	return ERR_FAILED;
 	AllocConsole();
 	FILE* f = freopen("CONIN$", "r", stdin);
 	f = freopen("CONOUT$", "w", stdout);
 	f = freopen("CONOUT$", "w", stderr);
 	cout << endl << "PassThruOpen" << endl << endl;
-	return translator->OpenDevice(pDeviceID);
+	return translator.OpenDevice(pDeviceID);
 }
 
 extern "C" LEXIAJ2534_API long PassThruReadVersion(
@@ -45,7 +47,7 @@ extern "C" LEXIAJ2534_API long PassThruReadVersion(
 	char* pDllVersion,
 	char* pApiVersion)
 {
-	if (translator->GetFmwVer(DeviceID, pFirmwareVersion) == STATUS_NOERROR)
+	if (translator.GetFmwVer(DeviceID, pFirmwareVersion) == STATUS_NOERROR)
 	{
 		strcpy(pDllVersion, "1.00");
 		strcpy(pApiVersion, "04.04");
@@ -60,7 +62,7 @@ extern "C" LEXIAJ2534_API long PassThruClose(unsigned long DeviceID)
 	cout << endl << "Close" << endl;
 	cout << "DeviceID: " << DeviceID << endl;
 #endif 		
-	return translator->CloseDevice(DeviceID);
+	return translator.CloseDevice(DeviceID);
 }
 extern "C" LEXIAJ2534_API long PassThruConnect(
 	unsigned long DeviceID,
@@ -80,7 +82,7 @@ extern "C" LEXIAJ2534_API long PassThruConnect(
 	{
 		return ERR_NOT_SUPPORTED;
 	}
-	return translator->ConnectAsCan500(DeviceID, pChannelID);
+	return translator.ConnectAsCan500(DeviceID, pChannelID);
 }
 extern "C" LEXIAJ2534_API long PassThruDisconnect(
 	unsigned long ChannelID)
@@ -88,7 +90,7 @@ extern "C" LEXIAJ2534_API long PassThruDisconnect(
 #ifdef LOG_OUTPUT
 	cout << endl << "Disconnect" << endl;
 #endif 
-	return translator->Disconnect(ChannelID);
+	return translator.Disconnect(ChannelID);
 }
 extern "C" LEXIAJ2534_API long PassThruReadMsgs(
 	unsigned long ChannelID,
@@ -104,7 +106,7 @@ extern "C" LEXIAJ2534_API long PassThruReadMsgs(
 #endif 	
 	size_t len = 0;
 	unsigned short addr = 0;
-	long status = translator->ReadMsg(ChannelID, &pMsg->Data[4], &len, &addr);
+	long status = translator.ReadMsg(ChannelID, &pMsg->Data[4], &len, &addr);
 	if (status == STATUS_NOERROR)
 	{
 		memset(pMsg->Data, 0x00, 4);
@@ -141,7 +143,7 @@ extern "C" LEXIAJ2534_API long PassThruWriteMsgs(
 	unsigned short ecu = pMsg->Data[2] << 8;
 	ecu |= pMsg->Data[3];
 
-	return translator->SendMsg(ChannelID, &pMsg->Data[4], pMsg->DataSize - 4, ecu);
+	return translator.SendMsg(ChannelID, &pMsg->Data[4], pMsg->DataSize - 4, ecu);
 }
 extern "C" LEXIAJ2534_API long PassThruStartPeriodicMsg(
 	unsigned long ChannelID,
@@ -218,7 +220,7 @@ extern "C" LEXIAJ2534_API long PassThruStartMsgFilter(
 	unsigned short ans = pPatternMsg->Data[2] << 8;
 	ans |= pPatternMsg->Data[3];
 
-	return translator->SetFilter(ChannelID, ecu, ans, pFilterID);
+	return translator.SetFilter(ChannelID, ecu, ans, pFilterID);
 }
 extern "C" LEXIAJ2534_API long PassThruStopMsgFilter(
 	unsigned long ChannelID,
@@ -247,7 +249,7 @@ extern "C" LEXIAJ2534_API long PassThruSetProgrammingVoltage(
 extern "C" LEXIAJ2534_API long PassThruGetLastError(
 	char* pErrorDescription)
 {
-	cout << endl << "PassThruGetLastError " << endl; 
+	cout << endl << "PassThruGetLastError " << endl;
 	memcpy(pErrorDescription, errorStr, sizeof(errorStr));
 	return STATUS_NOERROR;
 }
@@ -288,7 +290,7 @@ extern "C" LEXIAJ2534_API long PassThruIoctl(
 	case CLEAR_RX_BUFFER:
 	case CLEAR_TX_BUFFER:
 		cout << "Clear buffer" << endl;
-		return translator->ClearBuffers(ChannelID);
+		return translator.ClearBuffers(ChannelID);
 	case FIVE_BAUD_INIT:
 	{
 		return ERR_NOT_SUPPORTED;
@@ -302,27 +304,10 @@ extern "C" LEXIAJ2534_API long PassThruIoctl(
 		return ERR_NOT_SUPPORTED;
 	}
 	case CLEAR_MSG_FILTERS:
-		cout << "CLEAR_MSG_FILTERS" << endl; 
-		return translator->ClearFilters(ChannelID);
+		cout << "CLEAR_MSG_FILTERS" << endl;
+		return translator.ClearFilters(ChannelID);
 	default:
-		return ERR_NOT_SUPPORTED;;
+		return ERR_NOT_SUPPORTED;
 	}
 	return STATUS_NOERROR;
 }
-
-BOOL APIENTRY DllMain(HMODULE hModule,
-	DWORD  ul_reason_for_call,
-	LPVOID lpReserved
-)
-{
-	switch (ul_reason_for_call)
-	{
-	case DLL_PROCESS_ATTACH:
-	case DLL_THREAD_ATTACH:
-	case DLL_THREAD_DETACH:
-	case DLL_PROCESS_DETACH:
-		break;
-	}
-	return TRUE;
-}
-
