@@ -1,9 +1,8 @@
-#include "pch.h"
 #include "CTranslator.h"
 #include "j2534.h"
 #include <cstdlib>
 #include <ctime>
-#include <iostream>
+//#include <iostream>
 
 unsigned char AppVersion[] = { 0x00, 0xFA, 0x00, 0x00, 0x7C, 0x15, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 unsigned char EepromRead[] = { 0x00, 0x09, 0x00, 0x00, 0x7C, 0x15, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,0x00, 0xFF };
@@ -153,8 +152,8 @@ long CTranslator::ConnectAsCan500(unsigned long id, unsigned long* ch)
 	//Lexia->SendReceive(EepromRead, sizeof(EepromRead), tempBuf, &received_len);//!
 	//Lexia->SendReceive(someMsg4, sizeof(someMsg4), tempBuf, &received_len);
 	//Lexia->SendReceive(someMsg5, sizeof(someMsg5), tempBuf, &received_len);
-
-	while (true)
+	clock_t curr_tick = clock();
+	while (clock() - curr_tick < 5000)
 	{
 		if (Lexia->SendReceive(connectAsCan, sizeof(connectAsCan), tempBuf, &received_len) == LEXIA_NOERROR)
 		{
@@ -164,6 +163,7 @@ long CTranslator::ConnectAsCan500(unsigned long id, unsigned long* ch)
 		else
 			return ERR_FAILED;
 	}
+	if (clock() - curr_tick < 5000)
 
 	//if (Lexia->SendReceive(connectAsCan, sizeof(connectAsCan), tempBuf, &received_len) == LEXIA_NOERROR)
 	{

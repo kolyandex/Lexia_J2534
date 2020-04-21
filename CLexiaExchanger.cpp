@@ -1,12 +1,9 @@
-#include "pch.h"
 #include "CLexiaExchanger.h"
 #include <cfgmgr32.h>
 #include <strsafe.h>
-#include <guiddef.h>
-#include <initguid.h>
 #include <iostream>
 #include <ctime>
-#pragma comment(lib,"cfgmgr32.lib")
+//#pragma comment(lib,"cfgmgr32.lib")
 
 #define IOCTL_SEND_COMMAND 0x22200c
 #define IOCTL_GET_RESULT 0x222010
@@ -27,7 +24,7 @@ static char* BytesToCharArray(UCHAR* data, UINT size)
 
 LEXIA_STATUS CLexiaExchanger::GetDevicePath(_In_  LPGUID InterfaceGuid, _Out_writes_z_(BufLen) PWCHAR DevicePath, _In_ size_t BufLen)
 {
-	CONFIGRET cr = CR_SUCCESS;
+	CONFIGRET cr = CR_DEFAULT;
 	PWSTR deviceInterfaceList = NULL;
 	ULONG deviceInterfaceListLength = 0;
 	PWSTR nextInterface;
@@ -44,12 +41,14 @@ LEXIA_STATUS CLexiaExchanger::GetDevicePath(_In_  LPGUID InterfaceGuid, _Out_wri
 	if (deviceInterfaceListLength <= 1)
 	{
 		printf("Error: No active device interfaces found.\n");
+		cr = CR_DEFAULT;
 		goto clean0;
 	}
 	deviceInterfaceList = (PWSTR)malloc(deviceInterfaceListLength * sizeof(WCHAR));
 	if (deviceInterfaceList == NULL)
 	{
 		printf("Error allocating memory for device interface list.\n");
+		cr = CR_DEFAULT;
 		goto clean0;
 	}
 	ZeroMemory(deviceInterfaceList, deviceInterfaceListLength * sizeof(WCHAR));

@@ -1,4 +1,7 @@
 #pragma once
+#include <Windows.h>
+#include <guiddef.h>
+#include <initguid.h>
 #define LEXIA_NOERROR 0
 #define LEXIA_NOT_CONNECTED 1
 #define LEXIA_IO_ERROR 2

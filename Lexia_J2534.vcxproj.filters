@@ -18,9 +18,6 @@
     <ClInclude Include="framework.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
-    <ClInclude Include="pch.h">
-      <Filter>Файлы заголовков</Filter>
-    </ClInclude>
     <ClInclude Include="j2534.h">
       <Filter>Файлы заголовков</Filter>
     </ClInclude>
@@ -32,9 +29,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="pch.cpp">
-      <Filter>Исходные файлы</Filter>
-    </ClCompile>
     <ClCompile Include="CLexiaExchanger.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
@@ -47,5 +41,10 @@
     <ClCompile Include="dllmain.cpp">
       <Filter>Исходные файлы</Filter>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="LexiaJ2534.def">
+      <Filter>Исходные файлы</Filter>
+    </None>
   </ItemGroup>
 </Project>
