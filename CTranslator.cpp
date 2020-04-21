@@ -2,7 +2,7 @@
 #include "j2534.h"
 #include <cstdlib>
 #include <ctime>
-//#include <iostream>
+#include "dllmain.h"
 
 unsigned char AppVersion[] = { 0x00, 0xFA, 0x00, 0x00, 0x7C, 0x15, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };
 unsigned char EepromRead[] = { 0x00, 0x09, 0x00, 0x00, 0x7C, 0x15, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00,0x00, 0xFF };
@@ -84,11 +84,12 @@ long CTranslator::OpenDevice(unsigned long* id)
 		std::srand(static_cast<unsigned int>(std::time(0)));
 		device = std::rand();
 		*id = device;
+		LexiaLog("Device opened with ID: %d", device);
 		return STATUS_NOERROR;
 	}
 	else
 	{
-		//printf("Open device: %s\n", LexiaErrors[status]);
+		LexiaLog("Open device: %s", LexiaErrors[status]);
 		return ERR_FAILED;
 	}
 }
@@ -119,7 +120,7 @@ long CTranslator::GetFmwVer(unsigned long id, char* fmw_str)
 	if (Lexia->SendReceive(AppVersion, sizeof(AppVersion), tempBuf, &received_len) == LEXIA_NOERROR)
 	{
 		Replace(&tempBuf[20], &tempBuf[59], 0x00, ' ');
-		//printf("Firmware: %s\n", &tempBuf[20]);
+		LexiaLog("Firmware: %s", &tempBuf[20]);
 		strcpy(fmw_str, &tempBuf[20]);
 		return STATUS_NOERROR;
 	}
@@ -142,17 +143,12 @@ long CTranslator::ConnectAsCan500(unsigned long id, unsigned long* ch)
 	}
 	size_t received_len = 0;
 
-	//Lexia->SendReceive(someMsg, sizeof(someMsg), tempBuf, &received_len);
-	//Lexia->SendReceive(someMsg3, sizeof(someMsg3), tempBuf, &received_len);
-	//Lexia->SendReceive(someMsg2, sizeof(someMsg2), tempBuf, &received_len);
-	//Lexia->SendReceive(someMsg3, sizeof(someMsg3), tempBuf, &received_len);
-	//Lexia->SendReceive(someVerReq, sizeof(someVerReq), tempBuf, &received_len);
-	Lexia->SendReceive(JumpToApp, sizeof(JumpToApp), tempBuf, &received_len);//!
-	Lexia->SendReceive(CommStatus, sizeof(CommStatus), tempBuf, &received_len);//!
+	Lexia->SendReceive(JumpToApp, sizeof(JumpToApp), tempBuf, &received_len);
+	Lexia->SendReceive(CommStatus, sizeof(CommStatus), tempBuf, &received_len);
 	//Lexia->SendReceive(EepromRead, sizeof(EepromRead), tempBuf, &received_len);//!
-	//Lexia->SendReceive(someMsg4, sizeof(someMsg4), tempBuf, &received_len);
-	//Lexia->SendReceive(someMsg5, sizeof(someMsg5), tempBuf, &received_len);
+
 	clock_t curr_tick = clock();
+	// Waiting for connection
 	while (clock() - curr_tick < 5000)
 	{
 		if (Lexia->SendReceive(connectAsCan, sizeof(connectAsCan), tempBuf, &received_len) == LEXIA_NOERROR)
@@ -164,17 +160,9 @@ long CTranslator::ConnectAsCan500(unsigned long id, unsigned long* ch)
 			return ERR_FAILED;
 	}
 	if (clock() - curr_tick < 5000)
-
-	//if (Lexia->SendReceive(connectAsCan, sizeof(connectAsCan), tempBuf, &received_len) == LEXIA_NOERROR)
 	{
-		//Sleep(1000);
-		//Lexia->SendReceive(connectAsCan, sizeof(connectAsCan), tempBuf, &received_len);
 		channel = std::rand();
 		*ch = channel;
-		//Lexia->SendReceive(protocolMessage, sizeof(protocolMessage), tempBuf, &received_len);
-		//Lexia->SendReceive(sendMessage, sizeof(sendMessage), tempBuf, &received_len);
-		//Lexia->SendReceive(sendMessage2, sizeof(sendMessage2), tempBuf, &received_len);
-		//Lexia->SendReceive(sendMessage3, sizeof(sendMessage3), tempBuf, &received_len);
 		return STATUS_NOERROR;
 	}
 	return ERR_FAILED;
@@ -213,9 +201,9 @@ long CTranslator::SendMsg(unsigned long ch, unsigned char* buf, size_t len, unsi
 	}
 	if (addr != *(unsigned short*)& protocolMessage[54])
 	{
-		//printf("ECU addr not match!\n");
+		LexiaLog("ECU addr not match!");
 		return ERR_NOT_SUPPORTED;
-	}	
+	}
 	if (sendLen != 0)
 	{
 		return ERR_BUFFER_FULL;
@@ -263,7 +251,7 @@ long CTranslator::ReadMsg(unsigned long ch, unsigned char* buf, size_t* len, uns
 	if (received_len >= 20)
 	{
 		if (tempBuf[14] != 0x01)
-		{			
+		{
 			return ERR_TIMEOUT;
 		}
 		if (tempBuf[12] >= 3)
@@ -274,7 +262,7 @@ long CTranslator::ReadMsg(unsigned long ch, unsigned char* buf, size_t* len, uns
 				*len = tempBuf[22];
 				*addr = *(unsigned short*)& protocolMessage[58];
 				return STATUS_NOERROR;
-			}			
+			}
 		}
 	}
 	return ERR_FAILED;
@@ -298,9 +286,22 @@ long CTranslator::SetFilter(unsigned long ch, unsigned short ecu_addr, unsigned 
 	*id = filter;
 	*(unsigned short*)& protocolMessage[54] = ecu_addr;
 	*(unsigned short*)& protocolMessage[58] = ans_addr;
-	//printf("ECU: %X\n", *(unsigned short*)& protocolMessage[54]);
-	//printf("ANS: %X\n", *(unsigned short*)& protocolMessage[58]);
+	LexiaLog("ECU: %03X", *(unsigned short*)& protocolMessage[54]);
+	LexiaLog("ANS: %03X", *(unsigned short*)& protocolMessage[58]);
 	return STATUS_NOERROR;
+}
+long CTranslator::StopFilter(unsigned long ch, unsigned long id)
+{
+	if (ch != channel || channel == NOT_INITIALIZED)
+	{
+		return ERR_INVALID_CHANNEL_ID;
+	}
+	if (id == filter)
+	{
+		filter = NOT_INITIALIZED;
+		return STATUS_NOERROR;
+	}
+	return ERR_INVALID_FILTER_ID;
 }
 long CTranslator::ClearFilters(unsigned long ch)
 {

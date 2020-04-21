@@ -176,6 +176,7 @@
   <ItemGroup>
     <ClInclude Include="CLexiaExchanger.h" />
     <ClInclude Include="CTranslator.h" />
+    <ClInclude Include="dllmain.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="j2534.h" />
   </ItemGroup>

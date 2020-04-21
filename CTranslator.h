@@ -16,6 +16,7 @@ public:
 	long ReadMsg(unsigned long ch, unsigned char* buf, size_t* len, unsigned short* addr);
 
 	long SetFilter(unsigned long ch, unsigned short ecu_addr, unsigned short ans_addr, unsigned long* id);
+	long StopFilter(unsigned long ch, unsigned long id);
 	long ClearFilters(unsigned long ch);
 	long ClearBuffers(unsigned long ch);
 

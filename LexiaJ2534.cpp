@@ -4,9 +4,10 @@
 #include <ctime>
 #include <consoleapi3.h>
 #include <iostream>
+#include "dllmain.h"
 
 #define LOG_OUTPUT
-char errorStr[] = "UNKNOWN_ERROR";
+char errorStr[] = "TODO: ERRORS DESCRIPTIONS";
 using namespace std;
 
 #ifdef LEXIAJ2534_EXPORTS
@@ -15,167 +16,98 @@ using namespace std;
 #define LEXIAJ2534_API __declspec(dllimport)
 #endif
 
-clock_t clk = clock();
 CTranslator* translator = new CTranslator();
-FILE* outFile = NULL;
-
-static char* hexstr = new char[1024];
-static char* BytesToCharArray(UCHAR* data, UINT size)
-{
-	UINT i;
-	for (i = 0; i < size; i++) {
-		sprintf(hexstr + i * 2, "%02X", data[i]);
-	}
-	hexstr[i * 2] = 0;
-	return hexstr;
-}
 
 extern "C" LEXIAJ2534_API long APIENTRY PassThruOpen(void* pName, unsigned long* pDeviceID)
 {
-	AllocConsole();
-	outFile = freopen("CONIN$", "r", stdin);
-	outFile = freopen("CONOUT$", "w", stdout);
-	outFile = freopen("CONOUT$", "w", stderr);
-	cout << endl << "PassThruOpen" << endl << endl;
+	LexiaLog("PassThruOpen");
 	return translator->OpenDevice(pDeviceID);
 }
 
-extern "C" LEXIAJ2534_API long APIENTRY PassThruReadVersion(
-	unsigned long DeviceID,
-	char* pFirmwareVersion,
-	char* pDllVersion,
-	char* pApiVersion)
+extern "C" LEXIAJ2534_API long APIENTRY PassThruReadVersion(unsigned long DeviceID, char* pFirmwareVersion, char* pDllVersion, char* pApiVersion)
 {
-	if (translator->GetFmwVer(DeviceID, pFirmwareVersion) == STATUS_NOERROR)
-	{
-		strcpy(pDllVersion, "1.00");
-		strcpy(pApiVersion, "04.04");
-		return STATUS_NOERROR;
-	}
-	return ERR_FAILED;
+	strcpy(pDllVersion, "1.00");
+	strcpy(pApiVersion, "04.04");
+	return translator->GetFmwVer(DeviceID, pFirmwareVersion);
 }
 
 extern "C" LEXIAJ2534_API long APIENTRY PassThruClose(unsigned long DeviceID)
 {
-#ifdef LOG_OUTPUT
-	cout << endl << "Close" << endl;
-	cout << "DeviceID: " << DeviceID << endl;
-#endif
-	if (outFile != NULL) fclose(outFile);
+	LexiaLog("PassThruClose");
+	LexiaLog("DeviceID: %d", DeviceID);
 	return translator->CloseDevice(DeviceID);
 }
-extern "C" LEXIAJ2534_API long APIENTRY PassThruConnect(
-	unsigned long DeviceID,
-	unsigned long ProtocolID,
-	unsigned long Flags,
-	unsigned long BaudRate,
-	unsigned long* pChannelID)
+
+extern "C" LEXIAJ2534_API long APIENTRY PassThruConnect(unsigned long DeviceID, unsigned long ProtocolID, unsigned long Flags, unsigned long BaudRate, unsigned long* pChannelID)
 {
-#ifdef LOG_OUTPUT
-	cout << endl << "Connect" << endl;
-	cout << "DeviceID: " << dec << DeviceID << endl;
-	cout << "ProtocolID: " << dec << ProtocolID << endl;
-	cout << "Flags: 0x" << hex << Flags << endl;
-	cout << "BaudRate: " << dec << BaudRate << endl;
-#endif 
+	LexiaLog("PassThruConnect: DeviceID - %d, ProtocolID - %d, Flags: 0x%08X, Baudrate - %d", DeviceID, ProtocolID, Flags, BaudRate);
 	if (ProtocolID != ISO15765 || BaudRate != 500000 || Flags != 0)
 	{
 		return ERR_NOT_SUPPORTED;
 	}
 	return translator->ConnectAsCan500(DeviceID, pChannelID);
 }
-extern "C" LEXIAJ2534_API long APIENTRY PassThruDisconnect(
-	unsigned long ChannelID)
+
+extern "C" LEXIAJ2534_API long APIENTRY PassThruDisconnect(unsigned long ChannelID)
 {
-#ifdef LOG_OUTPUT
-	cout << endl << "Disconnect" << endl;
-#endif 
+	LexiaLog("PassThruDisconnect");
 	return translator->Disconnect(ChannelID);
 }
-extern "C" LEXIAJ2534_API long APIENTRY PassThruReadMsgs(
-	unsigned long ChannelID,
-	PASSTHRU_MSG* pMsg,
-	unsigned long* pNumMsgs,
-	unsigned long Timeout)
+
+extern "C" LEXIAJ2534_API long APIENTRY PassThruReadMsgs(unsigned long ChannelID, PASSTHRU_MSG* pMsg, unsigned long* pNumMsgs, unsigned long Timeout)
 {
-#ifdef LOG_OUTPUT
-	cout << endl << "Read" << endl;
-	cout << "ChannelID: " << ChannelID << endl;
-	cout << "Timeout: " << Timeout << endl;
-	cout << "pNumMsgs: " << *pNumMsgs << endl;
-#endif 	
+	if (pMsg == NULL || pNumMsgs == NULL)
+	{
+		return ERR_NULL_PARAMETER;
+	}
+	LexiaLog("PassThruReadMsgs: ChannelID - %d, Timeout - %d, pNumMsgs - %d", ChannelID, Timeout, *pNumMsgs);
 	size_t len = 0;
 	unsigned short addr = 0;
+	//Reading message
 	long status = translator->ReadMsg(ChannelID, &pMsg->Data[4], &len, &addr);
 	if (status == STATUS_NOERROR)
 	{
+		//Filling answer address and other stuff
 		memset(pMsg->Data, 0x00, 4);
 		pMsg->Data[2] = (addr >> 8);
 		pMsg->Data[3] = (addr & 0xFF);
 		pMsg->ProtocolID = ISO15765;
 		pMsg->RxStatus = 0;
 		pMsg->DataSize = len + 4;
+		*pNumMsgs = 1;
 	}
 	return status;
 }
-extern "C" LEXIAJ2534_API long APIENTRY PassThruWriteMsgs(
-	unsigned long ChannelID,
-	PASSTHRU_MSG* pMsg,
-	unsigned long* pNumMsgs,
-	unsigned long Timeout)
+
+extern "C" LEXIAJ2534_API long APIENTRY PassThruWriteMsgs(unsigned long ChannelID, PASSTHRU_MSG* pMsg, unsigned long* pNumMsgs, unsigned long Timeout)
 {
-#ifdef LOG_OUTPUT
-	cout << endl << "W" << endl;
-	cout << dec << clock() - clk << endl;
-	clk = clock();
-	cout << "ChannelID: " << ChannelID << endl;
-	cout << "ProtocolID: " << pMsg->ProtocolID << endl;
-	cout << "RxStatus: " << pMsg->RxStatus << endl;
-	cout << "TxFlags: 0x" << hex << pMsg->TxFlags << endl;
-	cout << "pNumMsgs: " << dec << *pNumMsgs << endl;
-	cout << "Timeout: " << Timeout << endl;
-	cout << "Data: " << BytesToCharArray(pMsg->Data, pMsg->DataSize) << endl;
-#endif 	
+	LexiaLog("PassThruWriteMsgs: ChannelID - %d, Timeout - %d, pNumMsgs - %d, TxFlags - %08X, Data - %s",
+		ChannelID, Timeout, *pNumMsgs, pMsg->TxFlags, BytesToCharArray(pMsg->Data, pMsg->DataSize));
+
 	if (pMsg->DataSize <= 4 || *pNumMsgs > 1 || pMsg->ProtocolID != ISO15765)
 	{
 		return ERR_NOT_SUPPORTED;
 	}
-	unsigned short ecu = pMsg->Data[2] << 8;
+	//Take ECU address from message
+	//0000XXXX000000~ - XXXX - address in PassThruMsg
+	unsigned short ecu = (pMsg->Data[2] << 8);
 	ecu |= pMsg->Data[3];
-
 	return translator->SendMsg(ChannelID, &pMsg->Data[4], pMsg->DataSize - 4, ecu);
 }
-extern "C" LEXIAJ2534_API long APIENTRY PassThruStartPeriodicMsg(
-	unsigned long ChannelID,
-	PASSTHRU_MSG* pMsg,
-	unsigned long* pMsgID,
-	unsigned long TimeInterval)
+
+extern "C" LEXIAJ2534_API long APIENTRY PassThruStartPeriodicMsg(unsigned long ChannelID, PASSTHRU_MSG* pMsg, unsigned long* pMsgID, unsigned long TimeInterval)
 {
-	cout << endl << "PeriodicMsg " << endl;
-	cout << "ChannelID: " << ChannelID << endl;
-	cout << "ProtocolID: " << pMsg->ProtocolID << endl;
-	cout << "RxStatus: " << pMsg->RxStatus << endl;
-	cout << "TxFlags: " << pMsg->TxFlags << endl;
-	cout << "TimeInterval: " << TimeInterval << endl;
-	cout << "Data: " << BytesToCharArray(pMsg->Data, pMsg->DataSize) << endl;
-	return ERR_FAILED;;
+	LexiaLog("PassThruStartPeriodicMsg: ChannelID - %d, TimeInterval - %d, TxFlags - %08X, Data - %s", ChannelID, TimeInterval, pMsg->TxFlags, BytesToCharArray(pMsg->Data, pMsg->DataSize));
+	return ERR_NOT_SUPPORTED;
 }
-extern "C" LEXIAJ2534_API long APIENTRY PassThruStopPeriodicMsg(
-	unsigned long ChannelID,
-	unsigned long MsgID)
+
+extern "C" LEXIAJ2534_API long APIENTRY PassThruStopPeriodicMsg(unsigned long ChannelID, unsigned long MsgID)
 {
-	cout << endl << "PassThruStopPeriodicMsg " << endl;
-	cout << "ChannelID: " << ChannelID << endl;
-	cout << "MsgID: " << MsgID << endl;
-	return ERR_FAILED;;
+	LexiaLog("PassThruStopPeriodicMsg: ChannelID - %d, MsgID - %d", ChannelID, MsgID);
+	return ERR_NOT_SUPPORTED;
 }
-extern "C" LEXIAJ2534_API long APIENTRY PassThruStartMsgFilter(
-	unsigned long ChannelID,
-	unsigned long FilterType,
-	PASSTHRU_MSG* pMaskMsg,
-	PASSTHRU_MSG* pPatternMsg,
-	PASSTHRU_MSG* pFlowControlMsg,
-	unsigned long* pFilterID)
+
+extern "C" LEXIAJ2534_API long APIENTRY PassThruStartMsgFilter(unsigned long ChannelID, unsigned long FilterType, PASSTHRU_MSG* pMaskMsg, PASSTHRU_MSG* pPatternMsg, PASSTHRU_MSG* pFlowControlMsg, unsigned long* pFilterID)
 {
 	if (pMaskMsg == NULL || pPatternMsg == NULL || pFlowControlMsg == NULL)
 	{
@@ -198,116 +130,83 @@ extern "C" LEXIAJ2534_API long APIENTRY PassThruStartMsgFilter(
 		return ERR_INVALID_MSG;
 	}
 
-	cout << endl << "MsgFilter " << endl;
+	LexiaLog("PassThruStartMsgFilter: ChannelID - %d, FilterType - %d", ChannelID, FilterType);
+	LexiaLog("MaskMsg:        %s", BytesToCharArray(pMaskMsg->Data, pMaskMsg->DataSize));
+	LexiaLog("PatternMsg:     %s", BytesToCharArray(pPatternMsg->Data, pPatternMsg->DataSize));
+	LexiaLog("FlowControlMsg: %s", BytesToCharArray(pFlowControlMsg->Data, pFlowControlMsg->DataSize));
 
-	cout << "---------" << endl << "pMaskMsg" << endl << "---------" << endl;
-	cout << "ProtocolID: " << dec << pMaskMsg->ProtocolID << endl;
-	cout << "TxFlags: 0x" << hex << pMaskMsg->TxFlags << endl;
-	cout << "Data: " << BytesToCharArray(pMaskMsg->Data, pMaskMsg->DataSize) << endl;
-
-	cout << "---------" << endl << "pPatternMsg" << endl << "---------" << endl;
-	cout << "ProtocolID: " << dec << pPatternMsg->ProtocolID << endl;
-	cout << "TxFlags: 0x" << hex << pPatternMsg->TxFlags << endl;
-	cout << "Data: " << BytesToCharArray(pPatternMsg->Data, pPatternMsg->DataSize) << endl;
-
-	cout << "---------" << endl << "pFlowControlMsg" << endl << "---------" << endl;
-	cout << "ProtocolID: " << dec << pFlowControlMsg->ProtocolID << endl;
-	cout << "TxFlags: 0x" << hex << pFlowControlMsg->TxFlags << endl;
-	cout << "Data: " << BytesToCharArray(pFlowControlMsg->Data, pFlowControlMsg->DataSize) << endl;
-
-	unsigned short ecu = pFlowControlMsg->Data[2] << 8;
+	//Take addresses from structs
+	unsigned short ecu = (pFlowControlMsg->Data[2] << 8);
 	ecu |= pFlowControlMsg->Data[3];
-	unsigned short ans = pPatternMsg->Data[2] << 8;
+	unsigned short ans = (pPatternMsg->Data[2] << 8);
 	ans |= pPatternMsg->Data[3];
 
 	return translator->SetFilter(ChannelID, ecu, ans, pFilterID);
 }
-extern "C" LEXIAJ2534_API long APIENTRY PassThruStopMsgFilter(
-	unsigned long ChannelID,
-	unsigned long FilterID)
+
+extern "C" LEXIAJ2534_API long APIENTRY PassThruStopMsgFilter(unsigned long ChannelID, unsigned long FilterID)
 {
-	cout << endl << "PassThruStopMsgFilter " << endl;
-	cout << "ChannelID: " << ChannelID << endl;
-	cout << "FilterID: " << FilterID << endl;
-	return ERR_FAILED;
+	LexiaLog("PassThruStopMsgFilter: ChannelID - %d, FilterID - %d", ChannelID, FilterID);
+	return translator->StopFilter(ChannelID, FilterID);
 }
 
-extern "C" LEXIAJ2534_API long APIENTRY PassThruSetProgrammingVoltage(
-	unsigned long DeviceID,
-	unsigned long PinNumber,
-	unsigned long Voltage)
+extern "C" LEXIAJ2534_API long APIENTRY PassThruSetProgrammingVoltage(unsigned long DeviceID, unsigned long PinNumber, unsigned long Voltage)
 {
-	cout << endl << "PassThruSetProgrammingVoltage " << endl;
-	cout << dec << clock() - clk << endl;
-	clk = clock();
-	cout << "DeviceID: " << dec << DeviceID << endl;
-	cout << "PinNumber: " << dec << PinNumber << endl;
-	cout << "Voltage: 0x" << hex << Voltage << endl;
-	return ERR_FAILED;
+	LexiaLog("PassThruSetProgrammingVoltage: DeviceID - %d, PinNumber - %d, Voltage - %d", DeviceID, PinNumber, Voltage);
+	return ERR_NOT_SUPPORTED;
 }
 
-extern "C" LEXIAJ2534_API long APIENTRY PassThruGetLastError(
-	char* pErrorDescription)
+extern "C" LEXIAJ2534_API long APIENTRY PassThruGetLastError(char* pErrorDescription)
 {
-	cout << endl << "PassThruGetLastError " << endl;
-	memcpy(pErrorDescription, errorStr, sizeof(errorStr));
+	LexiaLog("PassThruGetLastError");
+	strcpy(pErrorDescription, errorStr);
 	return STATUS_NOERROR;
 }
-extern "C" LEXIAJ2534_API long APIENTRY PassThruIoctl(
-	unsigned long ChannelID,
-	unsigned long IoctlID,
-	void* pInput,
-	void* pOutput)
+extern "C" LEXIAJ2534_API long APIENTRY PassThruIoctl(unsigned long ChannelID, unsigned long IoctlID, void* pInput, void* pOutput)
 {
-	cout << endl << "Ioctl" << endl;
-	cout << dec << clock() - clk << endl;
-	clk = clock();
-	cout << "ChannelID: " << ChannelID << endl;
-	cout << "IoctlID: " << IoctlID << endl;
-	int num_pars;
-	ULONG bat;
+	LexiaLog("PassThruIoctl: ChannelID - %d, IoctlID - %d", ChannelID, IoctlID);
+	int num_pars = 0;
+	ULONG bat = 14400;
 	switch (IoctlID)
 	{
 	case SET_CONFIG:
-		cout << "SET_CONFIG" << endl;
+	{
+		LexiaLog("SET_CONFIG");
+		if (pInput == NULL)
+		{
+			return ERR_NULL_PARAMETER;
+		}
 		num_pars = ((SCONFIG_LIST*)pInput)->NumOfParams;
-		cout << "NumOfParams: " << num_pars << endl;
 		for (int i = 0; i < num_pars; i++)
 		{
-			cout << "Num: " << i << endl;
-			cout << "Parameter: " << (SCONFIG*)(((SCONFIG_LIST*)pInput)->ConfigPtr)[i].Parameter << endl;
-			cout << "Value: " << (SCONFIG*)(((SCONFIG_LIST*)pInput)->ConfigPtr)[i].Value << endl;
+			LexiaLog("Parameter: %d, Value: %d", (SCONFIG*)(((SCONFIG_LIST*)pInput)->ConfigPtr)[i].Parameter, (SCONFIG*)(((SCONFIG_LIST*)pInput)->ConfigPtr)[i].Value);
 		}
 		return ERR_NOT_SUPPORTED;
 		break;
+	}
 	case READ_VBATT:
-		bat = 14400;
-		cout << "READ_VBATT" << endl;
-		cout << bat << endl;
-		memcpy(pOutput, &bat, sizeof(bat));
+	{
+		*(unsigned long*)pOutput = bat;
 		return STATUS_NOERROR;
-		break;
+	}
 	case CLEAR_RX_BUFFER:
 	case CLEAR_TX_BUFFER:
-		cout << "Clear buffer" << endl;
+	{
+		LexiaLog("Clear buffers");
 		return translator->ClearBuffers(ChannelID);
-	case FIVE_BAUD_INIT:
-	{
-		return ERR_NOT_SUPPORTED;
-	}
-	case FAST_INIT:
-	{
-		cout << "FAST_INIT" << endl; return ERR_FAILED;
-	}
-	case CLEAR_PERIODIC_MSGS:
-	{
-		return ERR_NOT_SUPPORTED;
 	}
 	case CLEAR_MSG_FILTERS:
-		cout << "CLEAR_MSG_FILTERS" << endl;
+	{
+		LexiaLog("CLEAR_MSG_FILTERS");
 		return translator->ClearFilters(ChannelID);
+	}
+	case FIVE_BAUD_INIT:
+	case FAST_INIT:
+	case CLEAR_PERIODIC_MSGS:
 	default:
+	{
 		return ERR_NOT_SUPPORTED;
+	}
 	}
 	return STATUS_NOERROR;
 }
