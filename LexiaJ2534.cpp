@@ -200,9 +200,11 @@ extern "C" LEXIAJ2534_API long APIENTRY PassThruIoctl(unsigned long ChannelID, u
 		LexiaLog("CLEAR_MSG_FILTERS");
 		return translator->ClearFilters(ChannelID);
 	}
+	case CLEAR_PERIODIC_MSGS:
+		return STATUS_NOERROR;
 	case FIVE_BAUD_INIT:
 	case FAST_INIT:
-	case CLEAR_PERIODIC_MSGS:
+	
 	default:
 	{
 		return ERR_NOT_SUPPORTED;
