@@ -105,16 +105,21 @@ LEXIA_STATUS CLexiaExchanger::Connect()
 		LexiaLog("Already in use");
 		return LEXIA_IN_USE;
 	}
+	LexiaLog("Trying \\\\.\\VCommUSBDevice device");
+	Device = CreateFile(L"\\\\.\\VCommUSBDevice0", GENERIC_WRITE | GENERIC_READ, FILE_SHARE_WRITE | FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
 
-	if (GetDevicePath((LPGUID)& GUID_DEVINTERFACE_LEXIA, completeDeviceName, sizeof(completeDeviceName) / sizeof(completeDeviceName[0])) != LEXIA_NOERROR)
+	if (Device == INVALID_HANDLE_VALUE)
 	{
-		LexiaLog("Lexia not found");
-		return  LEXIA_NOT_CONNECTED;
-	}
+		LexiaLog("Not found, trying GUID search");
+		if (GetDevicePath((LPGUID)& GUID_DEVINTERFACE_LEXIA, completeDeviceName, sizeof(completeDeviceName) / sizeof(completeDeviceName[0])) != LEXIA_NOERROR)
+		{
+			LexiaLog("Lexia not found");
+			return  LEXIA_NOT_CONNECTED;
+		}
 
-	LexiaLog("DeviceName: %S", completeDeviceName);
-
-	Device = CreateFile(completeDeviceName, GENERIC_WRITE | GENERIC_READ, FILE_SHARE_WRITE | FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+		LexiaLog("DeviceName: %S", completeDeviceName);
+		Device = CreateFile(completeDeviceName, GENERIC_WRITE | GENERIC_READ, FILE_SHARE_WRITE | FILE_SHARE_READ, NULL, OPEN_EXISTING, 0, NULL);
+	}	
 
 	if (Device == INVALID_HANDLE_VALUE)
 	{
