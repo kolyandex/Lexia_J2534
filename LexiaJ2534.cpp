@@ -81,10 +81,15 @@ extern "C" LEXIAJ2534_API long APIENTRY PassThruReadMsgs(unsigned long ChannelID
 
 extern "C" LEXIAJ2534_API long APIENTRY PassThruWriteMsgs(unsigned long ChannelID, PASSTHRU_MSG* pMsg, unsigned long* pNumMsgs, unsigned long Timeout)
 {
-	LexiaLog("PassThruWriteMsgs: ChannelID - %d, Timeout - %d, pNumMsgs - %d, TxFlags - %08X, Data - %s",
-		ChannelID, Timeout, *pNumMsgs, pMsg->TxFlags, BytesToCharArray(pMsg->Data, pMsg->DataSize));
+	if (pMsg == NULL || pNumMsgs == NULL)
+	{
+		return ERR_NULL_PARAMETER;
+	}
 
-	if (pMsg->DataSize <= 4 || *pNumMsgs > 1 || pMsg->ProtocolID != ISO15765)
+	LexiaLog("PassThruWriteMsgs: ChannelID - %d, Timeout - %d, pNumMsgs - %d, TxFlags - %08X, Data - %s, DataSize - %d",
+		ChannelID, Timeout, *pNumMsgs, pMsg->TxFlags, BytesToCharArray(pMsg->Data, pMsg->DataSize), pMsg->DataSize);
+
+	if (pMsg->DataSize < 4 || *pNumMsgs > 1 || pMsg->ProtocolID != ISO15765)
 	{
 		return ERR_NOT_SUPPORTED;
 	}
@@ -98,13 +103,13 @@ extern "C" LEXIAJ2534_API long APIENTRY PassThruWriteMsgs(unsigned long ChannelI
 extern "C" LEXIAJ2534_API long APIENTRY PassThruStartPeriodicMsg(unsigned long ChannelID, PASSTHRU_MSG* pMsg, unsigned long* pMsgID, unsigned long TimeInterval)
 {
 	LexiaLog("PassThruStartPeriodicMsg: ChannelID - %d, TimeInterval - %d, TxFlags - %08X, Data - %s", ChannelID, TimeInterval, pMsg->TxFlags, BytesToCharArray(pMsg->Data, pMsg->DataSize));
-	return ERR_NOT_SUPPORTED;
+	return STATUS_NOERROR;
 }
 
 extern "C" LEXIAJ2534_API long APIENTRY PassThruStopPeriodicMsg(unsigned long ChannelID, unsigned long MsgID)
 {
 	LexiaLog("PassThruStopPeriodicMsg: ChannelID - %d, MsgID - %d", ChannelID, MsgID);
-	return ERR_NOT_SUPPORTED;
+	return STATUS_NOERROR;
 }
 
 extern "C" LEXIAJ2534_API long APIENTRY PassThruStartMsgFilter(unsigned long ChannelID, unsigned long FilterType, PASSTHRU_MSG* pMaskMsg, PASSTHRU_MSG* pPatternMsg, PASSTHRU_MSG* pFlowControlMsg, unsigned long* pFilterID)

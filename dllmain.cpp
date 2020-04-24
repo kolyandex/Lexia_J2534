@@ -11,7 +11,7 @@ char* BytesToCharArray(UCHAR* data, UINT size)
 	UINT i = 0;
 	if (size < (sizeof(hexstr) / sizeof(hexstr[0])) / 2)
 	{
-		for (; i < size; i++) 
+		for (; i < size; i++)
 		{
 			sprintf(hexstr + i * 2, "%02X", data[i]);
 		}
@@ -26,25 +26,30 @@ void LexiaLog(char* format, ...)
 	va_list args;
 	va_start(args, format);
 	s_len = vsnprintf(NULL, 0, format, args);
-
-	if ((s_len + 10) > (sizeof(printf_buf) / sizeof(printf_buf[0])))
+	if (outFile == NULL) outFile = freopen("CONOUT$", "w", stdout);
+	if ((s_len + 10) <= (sizeof(printf_buf) / sizeof(printf_buf[0])))
+	{
+		s_len = sprintf(printf_buf, "%06d - ", clock());
+		if (s_len > 0)
+		{
+			s_len = vsnprintf((char*)& printf_buf[s_len], (sizeof(printf_buf) / sizeof(printf_buf[0])) - s_len, format, args);
+		}
+		if (s_len > 0)
+		{
+			printf("%s\n", printf_buf);
+		}
+	}
+	else
 	{
 		printf("printf_buf too small\n");
-		return;
 	}
-
-	s_len = sprintf(printf_buf, "%06d - ", clock());
-	if (s_len > 0)
-	{
-		s_len = vsnprintf((char*)& printf_buf[s_len], (sizeof(printf_buf) / sizeof(printf_buf[0])) - s_len, format, args);
-	}	
 	va_end(args);
-
-	if (s_len < 0)
+	if (outFile != NULL)
 	{
-		return;
+		fclose(outFile);
+		fclose(stdout);
+		outFile = NULL;
 	}
-	printf("%s\n", printf_buf);
 }
 
 BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReserved)
@@ -55,7 +60,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 	{
 		if (AllocConsole())
 		{
-			outFile = freopen("CONOUT$", "w", stdout);
+			HWND hwnd = GetConsoleWindow();
+			hwnd = GetConsoleWindow();
+			HMENU hmenu = GetSystemMenu(hwnd, FALSE);
+			EnableMenuItem(hmenu, SC_CLOSE, MF_GRAYED);
 		}
 		memset(printf_buf, 0x00, sizeof(printf_buf) / sizeof(printf_buf[0]));
 		break;
@@ -65,7 +73,6 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD  ul_reason_for_call, LPVOID lpReser
 		break;
 	case DLL_PROCESS_DETACH:
 	{
-		if (outFile != NULL) fclose(outFile);
 		break;
 	}
 	}
